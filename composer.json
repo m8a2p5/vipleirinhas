@@ -1,0 +1,23 @@
+{
+    "name": "m8a2p5/vipleirinhas",
+    "description": "Parse de conteúdo vip do site brasileirinhas.com.br",
+    "type": "library",
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-4": {
+            "VipLeirinhas\\": "src/"
+        }
+    },
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "m8a2p5",
+            "email": "110994692+m8a2p5@users.noreply.github.com",
+            "role": "Developer",
+            "homepage": "https://github.com/m8a2p5"
+        }
+    ],
+    "require": {
+        "php": ">=7.0"
+    }
+}
