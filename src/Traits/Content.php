@@ -15,22 +15,25 @@ trait Content
      */
     private function getContent ($url)
     {
-        $context = stream_context_create ([
-            'http' => [
-                'method' => 'GET',
-                'header' => "accept-language: pt-BR,pt;q=0.9\r\n".
-                    "origin: https://www.brasileirinhas.com.br\r\n".
-                    "referer: https://www.brasileirinhas.com.br/\r\n".
-                    "user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36"
-            ]
+
+        $cookie = new \GuzzleHttp\Cookie\CookieJar;
+
+        $client = new \GuzzleHttp\Client ([
+            'headers' => [
+                "accept-language" => "pt-BR,pt;q=0.9",
+                "origin" => "https://www.brasileirinhas.com.br",
+                "referer" => "https://www.brasileirinhas.com.br/",
+                "user-agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36"
+            ],
+            'cookies' => $cookie
         ]);
 
-        $content = @file_get_contents ($url, false, $context);
+        $content = $client->get ($url);
 
-        if ($content === false){
+        if ($content->getStatusCode() != 200){
             throw new \Exception  ("Falha ao abrir URL {$url}");
         }
 
-        return $content;
+        return $content->getBody();
     }
 }

@@ -8,6 +8,9 @@ class ParseFilme {
     use \VipLeirinhas\Traits\Content;
 
     /** @var string */
+    protected static $sjwt;
+
+    /** @var string */
     protected $url;
 
     /** @var string
@@ -17,7 +20,7 @@ class ParseFilme {
 
     const BASE_CDN_POSTER = 'https://static1.brasileirinhas.com.br/Brasileirinhas/images/conteudo/cenas/player/%d.jpg';
     const BASE_PLAYER = 'https://www.brasileirinhas.com.br/2020/play-2019.php?codVideo=%s&idVideo=%d&qtde=7&v=2';
-    const BASE_CDN_PLAYLIST = 'https://videos01.brasileirinhas.com.br/vod/%s/playlist.m3u8';
+    const BASE_CDN_PLAYLIST = 'https://videos01.brasileirinhas.com.br/vod/%s/playlist.m3u8?sjwt=%s';
     const BASE_CDN_PREVIEW = 'https://static2.brasileirinhas.com.br/preview/%s_%d.jpg';
     const BASE_CDN_VIDEO = 'https://videos01.brasileirinhas.com.br/vod/%s/%s';
 
@@ -91,6 +94,29 @@ class ParseFilme {
     public function cleanStr ($str)
     {
         return html_entity_decode (strip_tags (trim ($str)));
+    }
+
+    public function getSjwt ()
+    {
+        
+        if (!is_null (self::$sjwt)){
+            return self::$sjwt;
+        }
+        
+        $content = $this->getContent('https://www.brasileirinhas.com.br/2020/play-2019.php');
+
+        $pattern = '|document.cookie\s*=\s*"sjwt=(?<sjwt>.+)"|';
+
+        if (!$this->isMatch($pattern, $content)){
+            throw new \Exception ('Não foi possível conseguir o código sjws');
+        }
+
+        $match = $this->getMatchPattern($pattern, $content);
+
+        self::$sjwt = $match [0]['sjwt'];
+
+        return $match[0]['sjwt'];
+
     }
 
     /**
@@ -230,9 +256,10 @@ class ParseFilme {
                 $hash = $match ['hash'];
                 $descricao_cena = $this->descricaoCena ($key);
                 $preview = $this->previewCenas ($hash);
+                $sjwt = $this->getSjwt();
 
+                $playlist = sprintf (self::BASE_CDN_PLAYLIST, $hash, $sjwt);
                 $poster_cena = sprintf (self::BASE_CDN_POSTER, $id);
-                $playlist = sprintf (self::BASE_CDN_PLAYLIST, $hash);
                 $player = sprintf (self::BASE_PLAYER, $hash, $id);
                 $qualidade = $this->formatsM3U8 ($playlist, $hash);
 
@@ -294,12 +321,30 @@ class ParseFilme {
 
         for ($p=15; $p <= 59; $p+=10) {
             $imagem = sprintf(self::BASE_CDN_PREVIEW, $hash_cena, $p);
-            if (strpos (get_headers ($imagem)[0], '200') !== false) {
+            if ($this->statusOk ($imagem)) {
                 $preview [] = $imagem;
             }
         }
 
         return $preview;
+    }
+
+    /**
+     * Verifica se a url é valida(200)
+     * 
+     * @param string $url
+     * 
+     * @return bool
+     */
+    public function statusOk ($url)
+    {
+        $headers = get_headers ($url);
+
+        if (isset ($headers [0])){
+            return (strpos ($headers [0], '200') !== false);
+        }
+
+        return false;
     }
 
     /**
@@ -315,7 +360,7 @@ class ParseFilme {
     public function formatsM3U8 ($playlist, $hash)
     {
 
-        $content_playlist = @file_get_contents ($playlist);
+        $content_playlist = $this->getContent ($playlist);
         $pattern = '|#EXT-X-STREAM-INF:BANDWIDTH=(?<banda>[\d]+),NAME="(?<qualidade>\w+)",CODECS="(?<codecs>.*)"\n(?<url>[^\n]+)|';
 
         if ($content_playlist === false){
